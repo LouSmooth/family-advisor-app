@@ -2,15 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FamGuide | Your Family Advisor</title>
+    
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="FamGuide">
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
     <style>
         :root {
-            --primary: #4a90e2;
             --bg: #f4f7f9;
+            --card: #ffffff;
+            --text: #333;
+            --primary: #4a90e2;
             --user-bubble: #007aff;
-            --ai-bubble: #ffffff;
+            --accent: #8ab4f8;
             --danger: #ff3b30;
         }
 
@@ -19,40 +29,52 @@
             background-color: var(--bg);
             margin: 0;
             display: flex;
-            flex-direction: column;
             height: 100vh;
+            overflow: hidden;
         }
 
-        /* Header / Tools Menu */
+        /* Sidebar - Desktop Only */
+        #sidebar {
+            width: 260px;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-right: 1px solid #333;
+        }
+
+        @media (max-width: 768px) { #sidebar { display: none; } }
+
+        .sidebar-btn {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        /* Main Chat Area */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
         header {
             background: white;
-            padding: 10px 20px;
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #ddd;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            z-index: 10;
         }
 
-        .logo { font-weight: bold; color: var(--primary); font-size: 1.2rem; }
-        
-        .controls { display: flex; gap: 10px; }
-        
-        .tool-btn {
-            background: #eee;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        
-        .tool-btn:hover { background: #e0e0e0; }
-        .btn-danger { color: var(--danger); }
-
-        /* Chat Container */
         #chat-container {
             flex: 1;
             overflow-y: auto;
@@ -62,14 +84,14 @@
             gap: 15px;
         }
 
+        /* Bubbles */
         .message {
             max-width: 85%;
             padding: 12px 16px;
             border-radius: 18px;
             font-size: 16px;
             line-height: 1.5;
-            word-wrap: break-word;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .user-message {
@@ -81,15 +103,12 @@
 
         .ai-message {
             align-self: flex-start;
-            background-color: var(--ai-bubble);
+            background-color: white;
             color: #333;
             border-bottom-left-radius: 4px;
             border: 1px solid #e0e0e0;
         }
 
-        /* Markdown Styling */
-        .ai-message ul, .ai-message ol { padding-left: 20px; }
-        
         /* Input Area */
         #input-area {
             background: white;
@@ -102,62 +121,115 @@
 
         input {
             flex: 1;
-            padding: 12px;
+            padding: 12px 18px;
             border: 1px solid #ccc;
             border-radius: 25px;
-            outline: none;
             font-size: 16px;
+            outline: none;
         }
 
         .send-btn {
-            background-color: var(--primary);
+            background: var(--primary);
             color: white;
             border: none;
-            padding: 0 25px;
+            padding: 0 20px;
             border-radius: 25px;
-            cursor: pointer;
             font-weight: bold;
+            cursor: pointer;
         }
 
-        /* Incognito Badge */
-        #incognito-badge {
+        /* Modals */
+        #legalModal, #paywall {
             display: none;
-            background: #333;
-            color: white;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 5px;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
         }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 40px auto;
+            color: #333;
+        }
+
+        #incognito-badge { display: none; background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 5px; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">FamGuide <span id="incognito-badge">INCOGNITO</span></div>
-        <div class="controls">
-            <button class="tool-btn" onclick="toggleIncognito()" id="incog-btn">🕵️ Incognito</button>
-            <button class="tool-btn" onclick="downloadChat()">📥 Download</button>
-            <button class="tool-btn btn-danger" onclick="clearChat()">🗑️ Clear</button>
-        </div>
-    </header>
-
-    <div id="chat-container">
-        <div class="message ai-message">
-            Hi! I'm **FamGuide**. 🧸 All chats are private. How can I help?
+    <div id="sidebar">
+        <h2 style="color: var(--accent); margin-bottom: 5px;">FamGuide</h2>
+        <p id="tier-label" style="font-size: 12px; color: #aaa;">Free Tier: 10 Daily Questions</p>
+        
+        <button class="sidebar-btn" onclick="window.open('https://buy.stripe.com/YOUR_LINK_HERE')">💎 Upgrade to Pro</button>
+        <button class="sidebar-btn" onclick="unlockPro()">🔑 Enter Pro Code</button>
+        <button class="sidebar-btn" onclick="openLegal()">📄 Privacy & Terms</button>
+        
+        <div style="margin-top: auto; font-size: 11px; color: #666;">
+            Compliant with CCPA 2026.
         </div>
     </div>
 
-    <div id="input-area">
-        <input type="text" id="user-input" placeholder="Ask a question..." autocomplete="off">
-        <button class="send-btn" onclick="sendMessage()">Send</button>
+    <div id="main">
+        <header>
+            <div style="font-weight: bold;">FamGuide <span id="incognito-badge">INCOGNITO</span></div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="toggleIncognito()" style="border:none; background:none; cursor:pointer;">🕵️</button>
+                <button onclick="downloadChat()" style="border:none; background:none; cursor:pointer;">📥</button>
+                <button onclick="clearChat()" style="border:none; background:none; color:var(--danger); cursor:pointer;">🗑️</button>
+            </div>
+        </header>
+
+        <div id="chat-container">
+            <div class="message ai-message">Hi, I'm **FamGuide**. 🧸 Your private family advisor. How can I help today?</div>
+        </div>
+
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Ask FamGuide..." autocomplete="off">
+            <button class="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <div id="legalModal">
+        <div class="modal-content">
+            <h2>Privacy & Terms (CCPA)</h2>
+            <p><strong>Effective 2026:</strong> Under the California Consumer Privacy Act, you have the right to delete your data. We do not sell your personal information.</p>
+            <p><strong>Disclaimer:</strong> FamGuide provides educational advice based on child development experts. We are not a replacement for medical or mental health therapy.</p>
+            <button onclick="closeLegal()" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:10px;">I Understand</button>
+        </div>
+    </div>
+
+    <div id="paywall">
+        <div class="modal-content" style="text-align:center;">
+            <h2>Daily Limit Reached</h2>
+            <p>You've used your 10 free questions. Upgrade to Pro for unlimited expert support.</p>
+            <button onclick="window.open('https://buy.stripe.com/YOUR_LINK_HERE')" style="width:100%; padding:15px; background:gold; color:black; border:none; border-radius:10px; font-weight:bold;">Upgrade to Pro</button>
+            <p onclick="closePaywall()" style="margin-top:15px; font-size:12px; cursor:pointer; text-decoration:underline;">Close</p>
+        </div>
     </div>
 
     <script>
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
-        const incognitoBadge = document.getElementById('incognito-badge');
+        const DAILY_LIMIT = 10;
         let isIncognito = false;
+
+        // Check Pro Status
+        function isPro() { return localStorage.getItem('fampro_active') === 'true'; }
+
+        // Question Tracker
+        function getUsage() {
+            const today = new Date().toLocaleDateString();
+            let data = JSON.parse(localStorage.getItem('famusage') || '{}');
+            if (data.date !== today) return { date: today, count: 0 };
+            return data;
+        }
 
         function appendMessage(text, isUser) {
             const msgDiv = document.createElement('div');
@@ -169,13 +241,18 @@
         }
 
         async function sendMessage() {
+            const usage = getUsage();
+            if (!isPro() && usage.count >= DAILY_LIMIT) {
+                document.getElementById('paywall').style.display = 'block';
+                return;
+            }
+
             const text = userInput.value.trim();
             if (!text) return;
 
             appendMessage(text, true);
             userInput.value = "";
-
-            const loadingBubble = appendMessage("Thinking... 💭", false);
+            const loading = appendMessage("Thinking... 💭", false);
 
             try {
                 const response = await fetch('/api/chat', {
@@ -183,57 +260,56 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: text })
                 });
-
                 const data = await response.json();
-                loadingBubble.innerHTML = marked.parse(data.text);
-                
-                // If NOT incognito, we could save to localStorage here (optional)
-                if (!isIncognito) {
-                    console.log("Chat saved to session.");
+                loading.innerHTML = marked.parse(data.text);
+
+                if (!isPro() && !isIncognito) {
+                    usage.count++;
+                    localStorage.setItem('famusage', JSON.stringify(usage));
                 }
-
-            } catch (error) {
-                loadingBubble.innerText = "Connection issue. ⚠️";
+            } catch (e) {
+                loading.innerText = "Connection error. ⚠️";
             }
         }
 
-        // --- NEW FEATURES ---
-
-        function clearChat() {
-            if (confirm("Erase all messages in this session?")) {
-                chatContainer.innerHTML = '<div class="message ai-message">Chat cleared. 🧼 How can I help?</div>';
-            }
-        }
-
+        // Feature Functions
         function toggleIncognito() {
             isIncognito = !isIncognito;
-            incognitoBadge.style.display = isIncognito ? 'inline' : 'none';
-            const btn = document.getElementById('incog-btn');
-            btn.style.background = isIncognito ? '#333' : '#eee';
-            btn.style.color = isIncognito ? 'white' : 'black';
-            alert(isIncognito ? "Incognito Mode ON: History won't be saved." : "Incognito Mode OFF.");
+            document.getElementById('incognito-badge').style.display = isIncognito ? 'inline' : 'none';
+            alert(isIncognito ? "Incognito On: Questions won't count toward limit." : "Incognito Off.");
+        }
+
+        function clearChat() {
+            if(confirm("Clear current chat?")) chatContainer.innerHTML = '';
         }
 
         function downloadChat() {
-            const messages = Array.from(document.querySelectorAll('.message')).map(m => {
-                const role = m.classList.contains('user-message') ? "USER" : "FAMGUIDE";
-                return `[${role}]: ${m.innerText}\n`;
-            }).join('\n');
-            
-            const blob = new Blob([`FamGuide Conversation - ${new Date().toLocaleString()}\n\n` + messages], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
+            const text = Array.from(document.querySelectorAll('.message')).map(m => m.innerText).join('\n\n');
+            const blob = new Blob([text], {type: 'text/plain'});
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `FamGuide_Chat_${Date.now()}.txt`;
+            a.href = URL.createObjectURL(blob);
+            a.download = 'FamGuide_Chat.txt';
             a.click();
         }
 
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        function unlockPro() {
+            if(prompt("Enter Code:") === "FAMPRO2026") {
+                localStorage.setItem('fampro_active', 'true');
+                location.reload();
             }
+        }
+
+        function openLegal() { document.getElementById('legalModal').style.display = 'block'; }
+        function closeLegal() { document.getElementById('legalModal').style.display = 'none'; }
+        function closePaywall() { document.getElementById('paywall').style.display = 'none'; }
+
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
         });
+
+        if(isPro()) {
+            document.getElementById('tier-label').innerText = "⭐ FamGuide Pro Active";
+        }
     </script>
 </body>
 </html>
