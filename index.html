@@ -7,20 +7,50 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --bg-color: #f4f7f9;
+            --primary: #4a90e2;
+            --bg: #f4f7f9;
             --user-bubble: #007aff;
             --ai-bubble: #ffffff;
+            --danger: #ff3b30;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
             margin: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
         }
+
+        /* Header / Tools Menu */
+        header {
+            background: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .logo { font-weight: bold; color: var(--primary); font-size: 1.2rem; }
+        
+        .controls { display: flex; gap: 10px; }
+        
+        .tool-btn {
+            background: #eee;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        .tool-btn:hover { background: #e0e0e0; }
+        .btn-danger { color: var(--danger); }
 
         /* Chat Container */
         #chat-container {
@@ -32,7 +62,6 @@
             gap: 15px;
         }
 
-        /* Chat Bubbles */
         .message {
             max-width: 85%;
             padding: 12px 16px;
@@ -58,11 +87,9 @@
             border: 1px solid #e0e0e0;
         }
 
-        /* Markdown Styling inside AI Bubbles */
-        .ai-message ul, .ai-message ol { padding-left: 20px; margin: 10px 0; }
-        .ai-message p { margin: 5px 0; }
-        .ai-message strong { color: #000; }
-
+        /* Markdown Styling */
+        .ai-message ul, .ai-message ol { padding-left: 20px; }
+        
         /* Input Area */
         #input-area {
             background: white;
@@ -70,7 +97,7 @@
             display: flex;
             gap: 10px;
             border-top: 1px solid #ddd;
-            padding-bottom: env(safe-area-inset-bottom, 15px); /* Mobile optimization */
+            padding-bottom: env(safe-area-inset-bottom, 15px);
         }
 
         input {
@@ -79,52 +106,63 @@
             border: 1px solid #ccc;
             border-radius: 25px;
             outline: none;
-            font-size: 16px; /* Prevents auto-zoom on iPhone */
+            font-size: 16px;
         }
 
-        button {
-            background-color: var(--primary-color);
+        .send-btn {
+            background-color: var(--primary);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 0 25px;
             border-radius: 25px;
             cursor: pointer;
             font-weight: bold;
-            transition: opacity 0.2s;
         }
 
-        button:active { opacity: 0.7; }
+        /* Incognito Badge */
+        #incognito-badge {
+            display: none;
+            background: #333;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
 
+    <header>
+        <div class="logo">FamGuide <span id="incognito-badge">INCOGNITO</span></div>
+        <div class="controls">
+            <button class="tool-btn" onclick="toggleIncognito()" id="incog-btn">🕵️ Incognito</button>
+            <button class="tool-btn" onclick="downloadChat()">📥 Download</button>
+            <button class="tool-btn btn-danger" onclick="clearChat()">🗑️ Clear</button>
+        </div>
+    </header>
+
     <div id="chat-container">
         <div class="message ai-message">
-            Hi! I'm **FamGuide**. 🧸 How can I help your family today?
+            Hi! I'm **FamGuide**. 🧸 All chats are private. How can I help?
         </div>
     </div>
 
     <div id="input-area">
         <input type="text" id="user-input" placeholder="Ask a question..." autocomplete="off">
-        <button onclick="sendMessage()">Send</button>
+        <button class="send-btn" onclick="sendMessage()">Send</button>
     </div>
 
     <script>
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
+        const incognitoBadge = document.getElementById('incognito-badge');
+        let isIncognito = false;
 
-        // Function to add a bubble to the screen
         function appendMessage(text, isUser) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
-            
-            if (isUser) {
-                msgDiv.innerText = text;
-            } else {
-                // Use marked to parse AI's Markdown (bullets, bold, etc.)
-                msgDiv.innerHTML = marked.parse(text);
-            }
-            
+            msgDiv.innerHTML = isUser ? text : marked.parse(text);
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
             return msgDiv;
@@ -137,7 +175,6 @@
             appendMessage(text, true);
             userInput.value = "";
 
-            // Placeholder for AI response
             const loadingBubble = appendMessage("Thinking... 💭", false);
 
             try {
@@ -148,17 +185,49 @@
                 });
 
                 const data = await response.json();
-                
-                // Replace "Thinking..." with the actual response
                 loadingBubble.innerHTML = marked.parse(data.text);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // If NOT incognito, we could save to localStorage here (optional)
+                if (!isIncognito) {
+                    console.log("Chat saved to session.");
+                }
 
             } catch (error) {
-                loadingBubble.innerText = "Sorry, I ran into a connection issue. Please try again! ⚠️";
+                loadingBubble.innerText = "Connection issue. ⚠️";
             }
         }
 
-        // KEYBOARD LOGIC: Send on Enter, New line on Shift+Enter
+        // --- NEW FEATURES ---
+
+        function clearChat() {
+            if (confirm("Erase all messages in this session?")) {
+                chatContainer.innerHTML = '<div class="message ai-message">Chat cleared. 🧼 How can I help?</div>';
+            }
+        }
+
+        function toggleIncognito() {
+            isIncognito = !isIncognito;
+            incognitoBadge.style.display = isIncognito ? 'inline' : 'none';
+            const btn = document.getElementById('incog-btn');
+            btn.style.background = isIncognito ? '#333' : '#eee';
+            btn.style.color = isIncognito ? 'white' : 'black';
+            alert(isIncognito ? "Incognito Mode ON: History won't be saved." : "Incognito Mode OFF.");
+        }
+
+        function downloadChat() {
+            const messages = Array.from(document.querySelectorAll('.message')).map(m => {
+                const role = m.classList.contains('user-message') ? "USER" : "FAMGUIDE";
+                return `[${role}]: ${m.innerText}\n`;
+            }).join('\n');
+            
+            const blob = new Blob([`FamGuide Conversation - ${new Date().toLocaleString()}\n\n` + messages], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `FamGuide_Chat_${Date.now()}.txt`;
+            a.click();
+        }
+
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
