@@ -2,16 +2,14 @@ export default async function handler(req, res) {
   const { prompt } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
-  const systemInstructions = `You are FamGuide, a compassionate family advisor. Use advice from Dr. Becky Kennedy and Dr. Arthur Brooks. Speak clearly and simply.`;
-
   try {
-    // This 'gemini-pro' name is the most universal across different API versions
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    // URL change to v1 (stable) and model change to 1.0-pro
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: systemInstructions + "\n\nUser Question: " + prompt }]
+          parts: [{ text: "You are FamGuide. Respond to this: " + prompt }]
         }]
       })
     });
@@ -22,11 +20,12 @@ export default async function handler(req, res) {
       const aiText = data.candidates[0].content.parts[0].text;
       res.status(200).json({ text: aiText });
     } else if (data.error) {
-      res.status(500).json({ text: "System Error: " + data.error.message });
+      // This will now display the FULL error so we can see if it's a regional block
+      res.status(500).json({ text: "API Error (" + data.error.code + "): " + data.error.message });
     } else {
-      res.status(500).json({ text: "AI is currently resting. Please try again." });
+      res.status(500).json({ text: "The AI is not responding. Check your Google AI Studio billing/plan." });
     }
   } catch (error) {
-    res.status(500).json({ text: "Connection failed." });
+    res.status(500).json({ text: "Network Error." });
   }
 }
